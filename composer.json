@@ -1,0 +1,22 @@
+{
+    "name": "pfinal/cache",
+    "description": "缓存(Memcache、File、Array)",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/pfinal/cache/issues",
+        "source": "https://github.com/pfinal/cache"
+    },
+    "authors": [
+        {
+            "name": "Zou Yiliang"
+        }
+    ],
+    "require": {
+        "php": ">=5.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "PFinal\\Cache\\": "src/"
+        }
+    }
+}
