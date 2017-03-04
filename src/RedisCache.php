@@ -52,8 +52,8 @@ class RedisCache implements CacheInterface
      * 增加一个条目到缓存服务器
      * 仅键名不存在的情况下，往缓存中存储值
      * @param string $key 要设置值的key
-     * @param mixed $value 要存储的值，字符串和数值直接存储，其他类型序列化后存储
-     * @param int $expire 当前写入缓存的数据的失效时间。如果此值设置为0表明此数据永不过期。以秒为单位的整数（从当前算起的时间差）来说明此数据的过期时间。
+     * @param mixed $value 要存储的值
+     * @param int $expire 当前写入缓存的数据的失效时间。如果此值设置为0表明此数据永不过期。以秒为单位的整数（从当前算起的时间差）来说明此数据的过期时间
      * @return boolean 成功时返回 true， 或者在失败时返回 false. 如果这个key已经存在返回false
      */
     public function add($key, $value, $expire = 0)
@@ -70,7 +70,7 @@ class RedisCache implements CacheInterface
      * @param string $key 要设置值的key
      * @param mixed $value 要存储的值，字符串和数值直接存储，其他类型序列化后存储
      * @param int $expire 当前写入缓存的数据的失效时间。如果此值设置为0表明此数据永不过期。以秒为单位的整数（从当前算起的时间差）来说明此数据的过期时间
-     * @return boolean 成功时返回 true， 或者在失败时返回 false.
+     * @return boolean 成功时返回 true， 或者在失败时返回 false
      */
     public function set($key, $value, $expire = 0)
     {
@@ -87,7 +87,7 @@ class RedisCache implements CacheInterface
 
     /**
      * 从服务端检回一个元素
-     * @param $key string | array 要获取值的key或key数组
+     * @param $key string 要获取值的key
      * @return mixed 返回key对应的存储元素的字符串值或者在失败或key未找到的时候返回false
      */
     public function get($key)
@@ -102,7 +102,7 @@ class RedisCache implements CacheInterface
 
     /**
      * 从服务端检回多个匹配的元素
-     * @param $keys array 要获取值的key或key数组
+     * @param $keys string|array 要获取值的key或key数组
      * @return array
      */
     public function mget($keys)
@@ -116,18 +116,18 @@ class RedisCache implements CacheInterface
     }
 
     /**
-     * 从服务端删除一个元素
+     * 删除一个元素
      * @param string $key 要删除的元素的key
-     * @return mixed 成功时返回 true， 或者在失败时返回 false.
+     * @return bool 成功时返回 true， 或者在失败时返回 false.
      */
     public function delete($key)
     {
         $key = $this->generateUniqueKey($key);
-        return $this->getRedis()->del($key);
+        return (bool)$this->getRedis()->del($key);
     }
 
     /**
-     * 清洗（删除）已经存储的所有的元素
+     * 删除所有的元素
      * @return mixed 成功时返回 true， 或者在失败时返回 false
      */
     public function flush()
