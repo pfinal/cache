@@ -26,3 +26,9 @@ $cache->set('name', 'Ethan', 60); //缓存60秒
 echo $cache->get('name');
 
   ```
+  
+使用Redis缓存，需要:
+
+  ```
+  composer require predis/predis
+  ```
