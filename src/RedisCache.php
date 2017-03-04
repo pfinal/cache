@@ -10,6 +10,12 @@ namespace PFinal\Cache;
  */
 class RedisCache implements CacheInterface
 {
+    /*
+     $server = array(
+        'scheme' => 'tcp',
+        'host' => '127.0.0.1',
+        'port' => 6379,
+    )*/
     public $server;
     public $hashKey = true;
     public $keyPrefix = '';
@@ -112,12 +118,11 @@ class RedisCache implements CacheInterface
 
     /**
      * 清洗（删除）已经存储的所有的元素
-     * 立即使所有已经存在的元素失效。并不会真正的释放任何资源，而是仅仅标记所有元素都失效了，因此已经被使用的内存会被新的元素复写
      * @return mixed 成功时返回 true， 或者在失败时返回 false
      */
     public function flush()
     {
-        return $this->redis->flushall();
+        return $this->redis->flushdb();
     }
 
     protected function generateUniqueKey($key)
