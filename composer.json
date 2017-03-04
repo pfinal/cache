@@ -1,6 +1,6 @@
 {
     "name": "pfinal/cache",
-    "description": "缓存(Memcache、File、Array)",
+    "description": "缓存(Memcache、Redis、File、Array)",
     "license": "MIT",
     "support": {
         "issues": "https://github.com/pfinal/cache/issues",
