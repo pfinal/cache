@@ -9,8 +9,6 @@ namespace PFinal\Cache;
 class ArrayCache implements CacheInterface
 {
     private $_cache;
-    public $keyPrefix = '';
-    public $hashKey = true;
 
     public function __construct($config = array())
     {
@@ -56,18 +54,17 @@ class ArrayCache implements CacheInterface
 
     public function flush()
     {
-        $this->_cache = [];
+        $this->_cache = array();
         return true;
     }
 
     protected function generateUniqueKey($key)
     {
-        return $this->hashKey ? md5($this->keyPrefix . $key) : $this->keyPrefix . $key;
+        return $key;
     }
 
     public function mget($id)
     {
         throw new \Exception(get_class($this) . ' does not support ' . __METHOD__ . '().');
     }
-
 }

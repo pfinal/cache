@@ -9,8 +9,7 @@ class MemCache implements CacheInterface
 {
     private $_cache;
     public $servers = array();
-    public $hashKey = true;
-    public $keyPrefix = '';
+    public $keyPrefix = 'pfinal:cache:';
 
     public function __construct($config = array())
     {
@@ -26,7 +25,6 @@ class MemCache implements CacheInterface
         } else {
             $this->_cache->addServer('127.0.0.1', 11211);
         }
-
     }
 
     /**
@@ -108,6 +106,6 @@ class MemCache implements CacheInterface
 
     protected function generateUniqueKey($key)
     {
-        return $this->hashKey ? md5($this->keyPrefix . $key) : $this->keyPrefix . $key;
+        return $this->keyPrefix . $key;
     }
 }

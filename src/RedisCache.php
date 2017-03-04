@@ -17,8 +17,8 @@ class RedisCache implements CacheInterface
         'port' => 6379,
     )*/
     public $server;
-    public $hashKey = true;
-    public $keyPrefix = '';
+
+    public $keyPrefix = 'pfinal:cache:';
 
     /** @var $redis \Predis\Client */
     protected $redis;
@@ -28,20 +28,24 @@ class RedisCache implements CacheInterface
         foreach ($config as $name => $value) {
             $this->$name = $value;
         }
+    }
 
-        if (empty($this->server)) {
-            $params = array(
-                'scheme' => 'tcp',
-                'host' => '127.0.0.1',
-                'port' => 6379,
-            );
-        } else {
-            $params = $this->server;
-        }
-
+    protected function getRedis()
+    {
         if (!$this->redis instanceof \Predis\Client) {
+            if (empty($this->server)) {
+                $params = array(
+                    'scheme' => 'tcp',
+                    'host' => '127.0.0.1',
+                    'port' => 6379,
+                );
+            } else {
+                $params = $this->server;
+            }
             $this->redis = new \Predis\Client($params);
         }
+
+        return $this->redis;
     }
 
     /**
@@ -54,9 +58,7 @@ class RedisCache implements CacheInterface
      */
     public function add($key, $value, $expire = 0)
     {
-        $key = $this->generateUniqueKey($key);
-
-        if ($this->redis->exists($key)) {
+        if ($this->getRedis()->exists($this->generateUniqueKey($key))) {
             return false;
         }
 
@@ -75,8 +77,11 @@ class RedisCache implements CacheInterface
         $key = $this->generateUniqueKey($key);
 
         /** @var  $status \Predis\Response\Status */
-        $status = $this->redis->setex($key, $expire, serialize($value));
-
+        if ($expire == 0) {
+            $status = $this->getRedis()->set($key, serialize($value));
+        } else {
+            $status = $this->getRedis()->setex($key, $expire, serialize($value));
+        }
         return $status->getPayload() === 'OK';
     }
 
@@ -88,22 +93,26 @@ class RedisCache implements CacheInterface
     public function get($key)
     {
         $key = $this->generateUniqueKey($key);
-        $value = $this->redis->get($key);
+        $value = $this->getRedis()->get($key);
         if ($value !== false) {
-            return unserialize($value);
+            return @unserialize($value);
         }
-
         return false;
     }
 
     /**
      * 从服务端检回多个匹配的元素
      * @param $keys array 要获取值的key或key数组
-     * @return mixed 返回key对应的存储元素的字符串值或者在失败或key未找到的时候返回false
+     * @return array
      */
     public function mget($keys)
     {
-        throw new \Exception(get_class($this) . ' does not support ' . __METHOD__ . '().');
+        $keys = (array)$keys;
+        $values = array();
+        foreach ($keys as $key) {
+            $values[$key] = $this->get($key);
+        }
+        return $values;
     }
 
     /**
@@ -113,7 +122,8 @@ class RedisCache implements CacheInterface
      */
     public function delete($key)
     {
-        return $this->redis->del($key);
+        $key = $this->generateUniqueKey($key);
+        return $this->getRedis()->del($key);
     }
 
     /**
@@ -122,11 +132,22 @@ class RedisCache implements CacheInterface
      */
     public function flush()
     {
-        return $this->redis->flushdb();
+        if (empty($this->keyPrefix)) {
+            return $this->getRedis()->flushdb();
+        }
+
+        $keys = $this->getRedis()->keys($this->keyPrefix . '*');
+        if (count($keys) <= 0) {
+            return true;
+        }
+
+        $res = $this->getRedis()->del($keys);
+
+        return count($keys) == $res;
     }
 
     protected function generateUniqueKey($key)
     {
-        return $this->hashKey ? md5($this->keyPrefix . $key) : $this->keyPrefix . $key;
+        return $this->keyPrefix . $key;
     }
 }
