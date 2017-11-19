@@ -139,6 +139,57 @@ class FileCache implements CacheInterface
         return $this->addValue($this->generateUniqueKey($id), $value, $expire);
     }
 
+    public function increment($key, $value = 1)
+    {
+        $payload = $this->getPayload($key);
+
+        $payload['data'] = $payload['data'] + $value;
+
+        $this->set($key, $payload['data'], (int)$payload['time']);
+
+        return $payload['data'];
+    }
+
+    /**
+     * 还剩多少秒过期 以及 缓存内容
+     *
+     * @param string $key
+     * @return array
+     */
+    protected function getPayload($key)
+    {
+        $emptyPayload = array('data' => null, 'time' => null);
+
+        $cacheFile = $this->getCacheFile($this->generateUniqueKey($key));
+
+        $mtime = @filemtime($cacheFile);
+        if (!$mtime) {
+            return $emptyPayload;
+        }
+
+        $expire = $mtime - time();
+
+        if ($expire <= 0) {
+            $this->delete($key);
+            return $emptyPayload;
+        }
+
+        $value = @file_get_contents($cacheFile);
+
+        if ($this->serializer === null) {
+            $value = unserialize($value);
+        } else {
+            $value = call_user_func($this->serializer[1], $value);
+        }
+
+        if (!is_array($value)) {
+            return $emptyPayload;
+        }
+
+        return array('data' => $value[0], 'time' => $expire);
+    }
+
+
     public function flush()
     {
         return $this->flushValues();
@@ -185,6 +236,10 @@ class FileCache implements CacheInterface
         return true;
     }
 
+    /**
+     * @param string $key 添加前缀的key
+     * @return bool|string
+     */
     protected function getValue($key)
     {
         $cacheFile = $this->getCacheFile($key);
@@ -196,6 +251,10 @@ class FileCache implements CacheInterface
         return false;
     }
 
+    /**
+     * @param array $keys 添加前缀的key
+     * @return array
+     */
     protected function getValues($keys)
     {
         $results = array();
@@ -206,7 +265,7 @@ class FileCache implements CacheInterface
     }
 
     /**
-     * @param string $key
+     * @param string $key 添加前缀的key
      * @param string $value
      * @param integer $expire 缓存过期时间(多少秒后过期)。0表示永不过期.
      * @return boolean
@@ -232,6 +291,12 @@ class FileCache implements CacheInterface
         }
     }
 
+    /**
+     * @param string $key 添加前缀的key
+     * @param $value
+     * @param $expire
+     * @return bool
+     */
     protected function addValue($key, $value, $expire)
     {
         $cacheFile = $this->getCacheFile($key);
@@ -310,4 +375,5 @@ class FileCache implements CacheInterface
 
         return $result;
     }
+
 }

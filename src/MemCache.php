@@ -56,6 +56,13 @@ class MemCache implements CacheInterface
         return $this->_cache->set($key, $value, MEMCACHE_COMPRESSED, $expire);
     }
 
+    public function increment($key, $value = 1)
+    {
+        $key = $this->generateUniqueKey($key);
+
+        return $this->_cache->increment($key, $value);
+    }
+
     /**
      * 从服务端检回一个元素
      * @param $key string | array 要获取值的key或key数组

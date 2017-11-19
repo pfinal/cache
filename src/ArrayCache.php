@@ -52,6 +52,13 @@ class ArrayCache implements CacheInterface
         return true;
     }
 
+    public function increment($key, $value = 1)
+    {
+        $this->_cache[$key] = ((int)$this->_cache[$key]) + $value;
+
+        return $this->_cache[$key];
+    }
+
     public function flush()
     {
         $this->_cache = array();

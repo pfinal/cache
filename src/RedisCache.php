@@ -85,6 +85,13 @@ class RedisCache implements CacheInterface
         return $status->getPayload() === 'OK';
     }
 
+    public function increment($key, $value = 1)
+    {
+        $key = $this->generateUniqueKey($key);
+
+        return $this->getRedis()->incrby($key, $value);
+    }
+
     /**
      * 从服务端检回一个元素
      * @param $key string 要获取值的key

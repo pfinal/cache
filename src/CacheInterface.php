@@ -14,5 +14,7 @@ interface CacheInterface
 
     public function delete($id);
 
+    public function increment($key, $value = 1);
+
     public function flush();
 }
