@@ -78,18 +78,16 @@ class RedisCache implements CacheInterface
 
         /** @var  $status \Predis\Response\Status */
         if ($expire == 0) {
-            $status = $this->getRedis()->set($key, serialize($value));
+            $status = $this->getRedis()->set($key, $this->serialize($value));
         } else {
-            $status = $this->getRedis()->setex($key, $expire, serialize($value));
+            $status = $this->getRedis()->setex($key, $expire, $this->serialize($value));
         }
         return $status->getPayload() === 'OK';
     }
 
     public function increment($key, $value = 1)
     {
-        $key = $this->generateUniqueKey($key);
-
-        return $this->getRedis()->incrby($key, $value);
+        return $this->getRedis()->incrby($this->generateUniqueKey($key), $value);
     }
 
     /**
@@ -102,7 +100,7 @@ class RedisCache implements CacheInterface
         $key = $this->generateUniqueKey($key);
         $value = $this->getRedis()->get($key);
         if ($value !== false) {
-            return @unserialize($value);
+            return $this->unserialize($value);
         }
         return false;
     }
@@ -157,4 +155,15 @@ class RedisCache implements CacheInterface
     {
         return $this->keyPrefix . $key;
     }
+
+    protected function serialize($value)
+    {
+        return is_numeric($value) ? $value : serialize($value);
+    }
+
+    protected function unserialize($value)
+    {
+        return is_numeric($value) ? $value : @unserialize($value);
+    }
+
 }
