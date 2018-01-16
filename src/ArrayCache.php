@@ -20,7 +20,7 @@ class ArrayCache implements CacheInterface
     public function get($id, $default = null)
     {
         $key = $this->generateUniqueKey($id);
-        if (array_key_exists($key,$this->_cache) && ($this->_cache[$key][1] === 0 || $this->_cache[$key][1] > microtime(true))) {
+        if (array_key_exists($key, $this->_cache) && ($this->_cache[$key][1] === 0 || $this->_cache[$key][1] > microtime(true))) {
             return $this->_cache[$key][0];
         } else {
             return $default;
@@ -50,7 +50,7 @@ class ArrayCache implements CacheInterface
         if ($this->has($key)) {
             return false;
         } else {
-           return $this->set($key, $value, $ttl);
+            return $this->set($key, $value, $ttl);
         }
     }
 
