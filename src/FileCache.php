@@ -28,7 +28,6 @@ class FileCache implements CacheInterface
      * @var array|boolean 使用什么函数来进行序列化和反序列化
      * 默认为null ,表示使用 PHP 的 'serialize()' 和 'unserialize()' 函数
      * 如果需要指定其它函数，则需要一个索引数组，将用第一个来进行序列化，第二个进行反序列化
-     * 如果为false则不进行序列化和反序列化
      */
     public $serializer;
 
@@ -64,79 +63,70 @@ class FileCache implements CacheInterface
         static::createDirectory($this->cachePath);
     }
 
-    public function get($id)
+    public function set($key, $value, $ttl = null)
     {
-        $value = $this->getValue($this->generateUniqueKey($id));
-        if ($value === false || $this->serializer === false)
-            return $value;
-        if ($this->serializer === null)
+        if ($ttl instanceof \DateInterval) {
+            $ttl = $ttl->y * 365 * 24 * 60 * 60
+                + $ttl->m * 30 * 24 * 60 * 60
+                + $ttl->d * 24 * 60 * 60
+                + $ttl->h * 60 * 60
+                + $ttl->i * 60
+                + $ttl->s;
+        } else {
+            $ttl = (int)$ttl;
+        }
+
+        if ($this->serializer === null) {
+            $value = serialize(array($value));
+        } else {
+            $value = call_user_func($this->serializer[0], array($value));
+        }
+
+        return $this->setValue($this->generateUniqueKey($key), $value, $ttl);
+    }
+
+    public function get($key, $default = null)
+    {
+        $value = $this->getValue($this->generateUniqueKey($key));
+
+        if ($value === false) {
+            return $default;
+        }
+
+        if ($this->serializer === null) {
             $value = unserialize($value);
-        else
+        } else {
             $value = call_user_func($this->serializer[1], $value);
+        }
 
         if (is_array($value)) {
             return $value[0];
         }
-        return false;
 
+        return $default;
     }
 
+    /**
+     * @deprecated
+     */
     public function mget($ids)
     {
-        $uids = array();
-        foreach ($ids as $id)
-            $uids[$id] = $this->generateUniqueKey($id);
+        return $this->getMultiple($ids, false);
+    }
 
-        $values = $this->getValues($uids);
-        $results = array();
-        if ($this->serializer === false) {
-            foreach ($uids as $id => $uid)
-                $results[$id] = isset($values[$uid]) ? $values[$uid] : false;
-        } else {
-            foreach ($uids as $id => $uid) {
-                $results[$id] = false;
-                if (isset($values[$uid])) {
-                    $value = $this->serializer === null ? unserialize($values[$uid]) : call_user_func($this->serializer[1], $values[$uid]);
-                    if (is_array($value)) {
-                        $results[$id] = $value[0];
-                    }
-                }
-            }
+
+    /**
+     * @deprecated
+     */
+    public function add($key, $value, $expire = 0)
+    {
+        if ($this->serializer === null)
+            $value = serialize(array($value));
+        else {
+            $value = call_user_func($this->serializer[0], array($value));
         }
-        return $results;
-    }
 
-    /**
-     * @param $id
-     * @param mixed $value
-     * @param int $expire 缓存过期时间(多少秒后过期)。0表示永不过期.
-     * @return bool
-     */
-    public function set($id, $value, $expire = 0)
-    {
-
-        if ($this->serializer === null)
-            $value = serialize(array($value));
-        elseif ($this->serializer !== false)
-            $value = call_user_func($this->serializer[0], array($value));
-
-        return $this->setValue($this->generateUniqueKey($id), $value, $expire);
-    }
-
-    /**
-     * @param $id
-     * @param $value
-     * @param int $expire 缓存过期时间(多少秒后过期)，如果大于30天，请使用UNIX时间戳。0表示永不过期.
-     * @return bool
-     */
-    public function add($id, $value, $expire = 0)
-    {
-        if ($this->serializer === null)
-            $value = serialize(array($value));
-        elseif ($this->serializer !== false)
-            $value = call_user_func($this->serializer[0], array($value));
-
-        return $this->addValue($this->generateUniqueKey($id), $value, $expire);
+        return $this->addValue($this->generateUniqueKey($key), $value, $expire);
     }
 
     public function increment($key, $value = 1)
@@ -156,7 +146,7 @@ class FileCache implements CacheInterface
      * @param string $key
      * @return array
      */
-    protected function getPayload($key)
+    private function getPayload($key)
     {
         $emptyPayload = array('data' => null, 'time' => null);
 
@@ -189,23 +179,28 @@ class FileCache implements CacheInterface
         return array('data' => $value[0], 'time' => $expire);
     }
 
-
+    /**
+     * @deprecated
+     */
     public function flush()
     {
-        return $this->flushValues();
+        return $this->clear();
     }
 
-    public function delete($id)
+    public function delete($key)
     {
-        return $this->deleteValue($this->generateUniqueKey($id));
+        return $this->deleteValue($this->generateUniqueKey($key));
     }
 
-    protected function generateUniqueKey($key)
+    private function generateUniqueKey($key)
     {
+        if (!is_string($key)) {
+            throw new InvalidArgumentException('$key is not a string');
+        }
         return $this->hashKey ? md5($this->keyPrefix . $key) : $this->keyPrefix . $key;
     }
 
-    public function getGCProbability()
+    private function getGCProbability()
     {
         return $this->_gcProbability;
     }
@@ -215,7 +210,7 @@ class FileCache implements CacheInterface
      * 在高速缓存中存储的数据块时，默认为100，意味着0.01％的概率
      * 这个数字应该是0到1000000之间。值为0表示每次都执行垃圾回收
      */
-    public function setGCProbability($value)
+    private function setGCProbability($value)
     {
         $value = (int)$value;
         if ($value < 0) {
@@ -230,7 +225,7 @@ class FileCache implements CacheInterface
     /**
      * 删除所有缓存
      */
-    protected function flushValues()
+    private function flushValues()
     {
         $this->gc(false);
         return true;
@@ -240,7 +235,7 @@ class FileCache implements CacheInterface
      * @param string $key 添加前缀的key
      * @return bool|string
      */
-    protected function getValue($key)
+    private function getValue($key)
     {
         $cacheFile = $this->getCacheFile($key);
         if (($time = @filemtime($cacheFile)) > time()) {
@@ -255,7 +250,7 @@ class FileCache implements CacheInterface
      * @param array $keys 添加前缀的key
      * @return array
      */
-    protected function getValues($keys)
+    private function getValues($keys)
     {
         $results = array();
         foreach ($keys as $key) {
@@ -270,7 +265,7 @@ class FileCache implements CacheInterface
      * @param integer $expire 缓存过期时间(多少秒后过期)。0表示永不过期.
      * @return boolean
      */
-    protected function setValue($key, $value, $expire)
+    private function setValue($key, $value, $expire)
     {
         if (!$this->_gced && mt_rand(0, 1000000) < $this->_gcProbability) {
             $this->gc();
@@ -297,7 +292,7 @@ class FileCache implements CacheInterface
      * @param $expire
      * @return bool
      */
-    protected function addValue($key, $value, $expire)
+    private function addValue($key, $value, $expire)
     {
         $cacheFile = $this->getCacheFile($key);
 
@@ -307,13 +302,13 @@ class FileCache implements CacheInterface
         return $this->setValue($key, $value, $expire);
     }
 
-    protected function deleteValue($key)
+    private function deleteValue($key)
     {
         $cacheFile = $this->getCacheFile($key);
         return @unlink($cacheFile);
     }
 
-    protected function getCacheFile($key)
+    private function getCacheFile($key)
     {
         if ($this->directoryLevel > 0) {
             $base = $this->cachePath;
@@ -332,7 +327,7 @@ class FileCache implements CacheInterface
      * @param boolean $expiredOnly 如果为true 只删除过期的缓存文件  false 删除所有缓存文件
      * @param string $path 指定缓存目录，如果为null，则为$cachePath属性指定的目录
      */
-    public function gc($expiredOnly = true, $path = null)
+    private function gc($expiredOnly = true, $path = null)
     {
         if ($path === null) {
             $path = $this->cachePath;
@@ -361,7 +356,7 @@ class FileCache implements CacheInterface
      * @param bool $recursive
      * @return bool
      */
-    public static function createDirectory($path, $mode = 0775, $recursive = true)
+    private static function createDirectory($path, $mode = 0775, $recursive = true)
     {
         if (is_dir($path)) {
             return true;
@@ -376,4 +371,79 @@ class FileCache implements CacheInterface
         return $result;
     }
 
+    public function clear()
+    {
+        return $this->flushValues();
+    }
+
+    public function getMultiple($keys, $default = null)
+    {
+        if (!is_array($keys)) {
+            if (!$keys instanceof \Traversable) {
+                throw new InvalidArgumentException('$keys is neither an array nor Traversable');
+            }
+            $keys = iterator_to_array($keys, false);
+        }
+
+        $uids = array();
+        foreach ($keys as $id) {
+            $uids[$id] = $this->generateUniqueKey($id);
+        }
+
+        $values = $this->getValues($uids);
+        $results = array();
+        if ($this->serializer === false) {
+            foreach ($uids as $id => $uid) {
+                $results[$id] = isset($values[$uid]) ? $values[$uid] : $default;
+            }
+        } else {
+            foreach ($uids as $id => $uid) {
+                $results[$id] = $default;
+                if (isset($values[$uid])) {
+                    $value = $this->serializer === null ? unserialize($values[$uid]) : call_user_func($this->serializer[1], $values[$uid]);
+                    if (is_array($value)) {
+                        $results[$id] = $value[0];
+                    }
+                }
+            }
+        }
+        return $results;
+    }
+
+    public function setMultiple($values, $ttl = null)
+    {
+        if (!is_array($values)) {
+            if (!$values instanceof \Traversable) {
+                throw new InvalidArgumentException('$values is neither an array nor Traversable');
+            }
+            $values = iterator_to_array($values, false);
+        }
+
+        foreach ($values as $key => $value) {
+            $this->set($key, $value, $ttl);
+        }
+        return true;
+    }
+
+    public function deleteMultiple($keys)
+    {
+        if (!is_array($keys)) {
+            if (!$keys instanceof \Traversable) {
+                throw new InvalidArgumentException('$keys is neither an array nor Traversable');
+            }
+            $keys = iterator_to_array($keys, false);
+        }
+
+        foreach ($keys as $key) {
+            $this->delete($key);
+        }
+        return true;
+    }
+
+    public function has($key)
+    {
+        $payload = $this->getPayload($key);
+
+        return $payload['time'] !== null;
+    }
 }
