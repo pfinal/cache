@@ -17,7 +17,7 @@ class ArrayCache implements CacheInterface
         }
     }
 
-    public function get($id)
+    public function get($id, $default = null)
     {
         $key = $this->generateUniqueKey($id);
         if (isset($this->_cache[$key]) && ($this->_cache[$key][1] === 0 || $this->_cache[$key][1] > microtime(true))) {
@@ -27,20 +27,31 @@ class ArrayCache implements CacheInterface
         }
     }
 
-    public function set($id, $value, $expire = 0)
+    public function set($id, $value, $ttl = 0)
     {
+        if ($ttl instanceof \DateInterval) {
+            $ttl = $ttl->y * 365 * 24 * 60 * 60
+                + $ttl->m * 30 * 24 * 60 * 60
+                + $ttl->d * 24 * 60 * 60
+                + $ttl->h * 60 * 60
+                + $ttl->i * 60
+                + $ttl->s;
+        } else {
+            $ttl = (int)$ttl;
+        }
+
+
         $key = $this->generateUniqueKey($id);
-        $this->_cache[$key] = array($value, $expire === 0 ? 0 : microtime(true) + $expire);
+        $this->_cache[$key] = array($value, $ttl === 0 ? 0 : microtime(true) + $ttl);
         return true;
     }
 
-    public function add($id, $value, $expire = 0)
+    public function add($key, $value, $ttl = 0)
     {
-        $key = $this->generateUniqueKey($id);
-        if (isset($this->_cache[$key]) && ($this->_cache[$key][1] === 0 || $this->_cache[$key][1] > microtime(true))) {
+        if ($this->has($key)) {
             return false;
         } else {
-            $this->_cache[$key] = array($value, $expire === 0 ? 0 : microtime(true) + $expire);
+            $this->set($key, $value, $ttl);
             return true;
         }
     }
@@ -54,15 +65,19 @@ class ArrayCache implements CacheInterface
 
     public function increment($key, $value = 1)
     {
-        $this->_cache[$key] = ((int)$this->_cache[$key]) + $value;
+        if (!$this->has($key)) {
+            $this->set($key, $value);
+            return $value;
+        }
 
-        return $this->_cache[$key];
+        $this->_cache[$key][0] += (int)$value;
+
+        return $this->_cache[$key][0];
     }
 
     public function flush()
     {
-        $this->_cache = array();
-        return true;
+        return $this->clear();
     }
 
     protected function generateUniqueKey($key)
@@ -70,8 +85,59 @@ class ArrayCache implements CacheInterface
         return $key;
     }
 
-    public function mget($id)
+    public function mget($keys)
     {
-        throw new \Exception(get_class($this) . ' does not support ' . __METHOD__ . '().');
+        $this->getMultiple($keys, false);
+    }
+
+    public function clear()
+    {
+        $this->_cache = array();
+        return true;
+    }
+
+    public function getMultiple($keys, $default = null)
+    {
+        if (!is_array($keys)) {
+            if (!$keys instanceof \Traversable) {
+                throw new InvalidArgumentException('$keys is neither an array nor Traversable');
+            }
+            $keys = iterator_to_array($keys, false);
+        }
+
+        $values = array();
+        foreach ($keys as $key) {
+            $values[$key] = $this->get($key, $default);
+        }
+
+        return $values;
+    }
+
+    public function setMultiple($values, $ttl = null)
+    {
+        foreach ($values as $key => $value) {
+            $this->set($key, $value, $ttl);
+        }
+        return true;
+    }
+
+    public function deleteMultiple($keys)
+    {
+        if (!is_array($keys)) {
+            if (!$keys instanceof \Traversable) {
+                throw new InvalidArgumentException('$keys is neither an array nor Traversable');
+            }
+            $keys = iterator_to_array($keys, false);
+        }
+
+        foreach ($keys as $key) {
+            $this->delete($key);
+        }
+        return true;
+    }
+
+    public function has($key)
+    {
+        return isset($this->_cache[$key]) && ($this->_cache[$key][1] === 0 || $this->_cache[$key][1] > microtime(true));
     }
 }
