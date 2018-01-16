@@ -9,6 +9,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
     {
         //return new \PFinal\Cache\MemCache();
         //return new \PFinal\Cache\RedisCache();
+        return new \PFinal\Cache\ArrayCache();
 
         $config = array(
             'cachePath' => __DIR__ . '/cache',
@@ -119,7 +120,6 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
         $c = $this->getCache();
 
         $c->delete('count');
-        $c->set('count',0);
 
         $this->assertTrue($c->increment('count') == 1);
         $this->assertTrue($c->increment('count', 6) == 7);

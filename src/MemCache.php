@@ -56,8 +56,12 @@ class MemCache implements CacheInterface
 
     public function increment($key, $value = 1)
     {
-        $key = $this->generateUniqueKey($key);
+        if (!$this->has($key)) {
+            $this->add($key, $value);
+            return $value;
+        }
 
+        $key = $this->generateUniqueKey($key);
         return $this->_cache->increment($key, $value);
     }
 
