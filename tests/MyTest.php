@@ -9,7 +9,7 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
     {
         //return new \PFinal\Cache\MemCache();
         //return new \PFinal\Cache\RedisCache();
-        return new \PFinal\Cache\ArrayCache();
+        //return new \PFinal\Cache\ArrayCache();
 
         $config = array(
             'cachePath' => __DIR__ . '/cache',
