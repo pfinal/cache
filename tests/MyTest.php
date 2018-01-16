@@ -113,4 +113,15 @@ class FileCacheTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue($c->has('c'));
         $this->assertTrue($c->has('d'));
     }
+
+    public function testIncrement()
+    {
+        $c = $this->getCache();
+
+        $c->delete('count');
+        $c->set('count',0);
+
+        $this->assertTrue($c->increment('count') == 1);
+        $this->assertTrue($c->increment('count', 6) == 7);
+    }
 }
